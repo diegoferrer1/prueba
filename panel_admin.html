@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="es" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Palau - Panel de Administración</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Google Fonts & Icons -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Bricolage+Grotesque:opsz,wght@10..48,700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <!-- SortableJS for Admin Panel -->
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc; /* bg-slate-50 */
+        }
+        .font-brand {
+            font-family: 'Bricolage Grotesque', sans-serif;
+        }
+        /* Estilos para el autocompletado de Chrome */
+        input:-webkit-autofill,
+        input:-webkit-autofill:hover, 
+        input:-webkit-autofill:focus, 
+        input:-webkit-autofill:active {
+            -webkit-box-shadow: 0 0 0 30px #eef2ff inset !important;
+            -webkit-text-fill-color: #1e293b !important;
+        }
+        /* Animaciones */
+        .slide-up { animation: slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        .sortable-ghost { opacity: 0.4; background: #c7d2fe; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800">
+
+    <!-- App Container -->
+    <div id="app-container">
+
+        <!-- ======================================================= -->
+        <!-- VISTA DEL PANEL DE ADMINISTRADOR                      -->
+        <!-- ======================================================= -->
+        <div id="admin-view">
+            <!-- Pantalla de Contraseña -->
+            <div id="password-prompt" class="fixed inset-0 bg-slate-900/50 flex items-center justify-center z-50 p-4">
+                <div class="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-sm text-center slide-up">
+                    <h2 class="text-2xl font-bold mb-2">Acceso de Administrador</h2>
+                    <p class="text-slate-500 mb-6">Ingresa la contraseña para gestionar el menú.</p>
+                    <input type="password" id="password-input" class="w-full text-center text-lg p-3 rounded-lg border-2 border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none">
+                    <button id="password-submit" class="w-full mt-4 bg-indigo-600 text-white font-bold py-3 px-6 rounded-full hover:bg-indigo-700 transition-shadow">Entrar</button>
+                    <p id="password-error" class="text-red-500 text-sm mt-3 hidden">Contraseña incorrecta.</p>
+                </div>
+            </div>
+
+            <!-- Contenido del Panel -->
+            <div id="admin-panel" class="hidden container mx-auto p-4 sm:p-6 lg:p-8">
+                <header class="flex justify-between items-center mb-8">
+                    <h1 class="text-3xl font-bold">Panel de Control</h1>
+                     <div class="flex items-center gap-4">
+                        <a href="index.html" class="font-semibold text-indigo-600 hover:underline">Ver Menú Público</a>
+                        <button id="logout-btn" class="font-semibold text-slate-600 hover:underline">Cerrar Sesión</button>
+                    </div>
+                </header>
+                
+                <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
+                    <!-- Columna de Categorías y Cupones -->
+                    <div class="space-y-8">
+                        <!-- Sección de Categorías -->
+                        <div class="bg-white p-6 rounded-2xl shadow-lg space-y-6">
+                            <h2 class="text-xl font-bold">Categorías</h2>
+                            <form id="add-category-form" class="flex gap-2">
+                                <input type="text" id="category-name-input" placeholder="Nueva categoría" class="flex-grow p-3 rounded-lg border-2 border-slate-200 focus:ring-indigo-500 outline-none" required>
+                                <button type="submit" class="bg-indigo-600 text-white font-bold px-5 rounded-lg hover:bg-indigo-700 transition"><i class="fa-solid fa-plus"></i></button>
+                            </form>
+                            <ul id="category-list" class="space-y-2">
+                                <!-- Las categorías se listarán aquí -->
+                            </ul>
+                        </div>
+                        <!-- Sección de Cupones -->
+                        <div class="bg-white p-6 rounded-2xl shadow-lg space-y-6">
+                             <h2 class="text-xl font-bold">Gestión de Cupones</h2>
+                             <button id="add-coupon-btn" class="w-full bg-green-600 text-white font-bold py-2 px-5 rounded-full hover:bg-green-700 transition">
+                                <i class="fa-solid fa-ticket mr-2"></i>Crear Nuevo Cupón
+                            </button>
+                             <ul id="coupon-list" class="space-y-2 pt-4">
+                                <!-- Los cupones se listarán aquí -->
+                             </ul>
+                        </div>
+                    </div>
+
+                    <!-- Columna de Platillos -->
+                    <div class="lg:col-span-3 bg-white p-6 rounded-2xl shadow-lg">
+                         <div class="flex justify-between items-center mb-4">
+                            <h2 class="text-xl font-bold">Platillos del Menú</h2>
+                            <button id="add-item-btn" class="bg-indigo-600 text-white font-bold py-2 px-5 rounded-full hover:bg-indigo-700 transition">
+                                <i class="fa-solid fa-plus mr-2"></i>Añadir Platillo
+                            </button>
+                        </div>
+                        <div id="admin-menu-items">
+                           <!-- Los platillos se listarán aquí -->
+                        </div>
+                    </div>
+                </div>
+                 <!-- Zona de Peligro -->
+                <div class="mt-8 bg-red-50 border-2 border-red-200 p-6 rounded-2xl">
+                    <h2 class="text-xl font-bold text-red-800">Zona de Peligro</h2>
+                    <p class="text-red-700 mt-2 mb-4">Esta acción es irreversible. Se borrarán todos los platillos y categorías actuales y se restaurará el menú original.</p>
+                    <button id="restore-backup-btn" class="bg-red-600 text-white font-bold py-3 px-6 rounded-full hover:bg-red-700 transition-shadow">
+                        <i class="fas fa-history mr-2"></i>Restaurar Copia de Seguridad
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para editar/añadir Platillo (Admin) -->
+    <div id="item-modal" class="fixed inset-0 bg-black/50 z-50 p-4 hidden items-center justify-center">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] flex flex-col slide-up">
+            <header class="p-4 border-b">
+                <h2 id="modal-title" class="text-xl font-bold">Añadir Platillo</h2>
+            </header>
+            <form id="item-form" class="p-6 space-y-4 overflow-y-auto flex-grow">
+                <input type="hidden" id="item-id">
+                <div>
+                    <label for="item-name" class="font-semibold mb-1 block">Nombre</label>
+                    <input type="text" id="item-name" class="w-full p-3 rounded-lg border-2 border-slate-200" required>
+                </div>
+                 <div>
+                    <label for="item-description" class="font-semibold mb-1 block">Descripción</label>
+                    <textarea id="item-description" rows="3" class="w-full p-3 rounded-lg border-2 border-slate-200"></textarea>
+                </div>
+                 <div class="grid grid-cols-2 gap-4">
+                     <div>
+                        <label for="item-price" class="font-semibold mb-1 block">Precio Venta (RD$)</label>
+                        <input type="number" id="item-price" step="0.01" class="w-full p-3 rounded-lg border-2 border-slate-200" required>
+                    </div>
+                     <div>
+                        <label for="item-category" class="font-semibold mb-1 block">Categoría</label>
+                        <select id="item-category" class="w-full p-3 rounded-lg border-2 border-slate-200 bg-white" required></select>
+                    </div>
+                </div>
+                <div>
+                    <label for="item-options" class="font-semibold mb-1 block">Opciones (una por línea)</label>
+                    <textarea id="item-options" rows="4" class="w-full p-3 rounded-lg border-2 border-slate-200" placeholder="Ej: Extra Queso (+RD$50)&#10;Tocineta Adicional (+RD$75)&#10;Sin Cebolla"></textarea>
+                </div>
+                <div class="flex items-center gap-3">
+                    <input type="checkbox" id="item-visible" class="h-5 w-5 rounded text-indigo-600 focus:ring-indigo-500 border-gray-300" checked>
+                    <label for="item-visible" class="font-semibold">Visible en el menú público</label>
+                </div>
+            </form>
+             <footer class="p-4 flex justify-end gap-3 bg-slate-50 border-t rounded-b-2xl">
+                <button type="button" id="cancel-item-btn" class="font-bold py-2 px-5 rounded-full hover:bg-slate-200 transition">Cancelar</button>
+                <button type="submit" form="item-form" class="bg-indigo-600 text-white font-bold py-2 px-6 rounded-full hover:bg-indigo-700 transition">Guardar</button>
+            </footer>
+        </div>
+    </div>
+    
+    <!-- Modal para crear/editar Cupón (Admin) -->
+    <div id="coupon-modal" class="fixed inset-0 bg-black/50 z-50 p-4 hidden items-center justify-center">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg slide-up">
+             <header class="p-4 border-b">
+                <h2 id="coupon-modal-title" class="text-xl font-bold">Crear Nuevo Cupón</h2>
+            </header>
+             <form id="coupon-form" class="p-6 space-y-4">
+                <input type="hidden" id="coupon-id">
+                 <div>
+                    <label for="coupon-code" class="font-semibold mb-1 block">Código del Cupón (Ej: INSTA50)</label>
+                    <input type="text" id="coupon-code" class="w-full p-3 rounded-lg border-2 border-slate-200 uppercase" required>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label for="coupon-discount" class="font-semibold mb-1 block">Descuento (%)</label>
+                        <input type="number" id="coupon-discount" min="1" max="100" class="w-full p-3 rounded-lg border-2 border-slate-200" required>
+                    </div>
+                    <div>
+                        <label for="coupon-limit" class="font-semibold mb-1 block">Límite de Usos</label>
+                        <input type="number" id="coupon-limit" min="1" class="w-full p-3 rounded-lg border-2 border-slate-200" required>
+                    </div>
+                </div>
+                <div>
+                     <label for="coupon-min-purchase" class="font-semibold mb-1 block">Monto Mínimo de Compra (RD$)</label>
+                     <input type="number" id="coupon-min-purchase" min="0" step="0.01" class="w-full p-3 rounded-lg border-2 border-slate-200" required value="0">
+                </div>
+             </form>
+              <footer class="p-4 flex justify-end gap-3 bg-slate-50 border-t rounded-b-2xl">
+                <button type="button" id="cancel-coupon-btn" class="font-bold py-2 px-5 rounded-full hover:bg-slate-200 transition">Cancelar</button>
+                <button type="submit" form="coupon-form" class="bg-green-600 text-white font-bold py-2 px-6 rounded-full hover:bg-green-700 transition">Guardar Cupón</button>
+            </footer>
+        </div>
+    </div>
+    
+    <!-- SCRIPT PRINCIPAL -->
+    <script type="module">
+        // Importar la app de Firebase desde la configuración
+        import { app } from './firebase-config.js';
+
+        // Importar las funciones de Firestore necesarias
+        import { 
+            getFirestore, 
+            collection, 
+            onSnapshot, 
+            doc, 
+            addDoc, 
+            updateDoc, 
+            deleteDoc, 
+            writeBatch, 
+            query, 
+            orderBy, 
+            setDoc, 
+            serverTimestamp,
+            getDocs
+        } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+        // Inicializar Firestore
+        const db = getFirestore(app);
+
+        // =======================================================
+        // CONFIGURACIÓN Y ESTADO INICIAL
+        // =======================================================
+        
+        const ADMIN_PASSWORD = "palau"; // Contraseña para el panel de admin
+
+        const appState = {
+            categories: [],
+            menuItems: [],
+            coupons: [], // Nuevo estado para cupones
+            adminSortable: null
+        };
+
+        // =======================================================
+        // INICIALIZACIÓN DE FIREBASE
+        // =======================================================
+        const categoriesCol = collection(db, 'categories');
+        const menuItemsCol = collection(db, 'menuItems');
+        const couponsCol = collection(db, 'cupones_maestros'); // Nueva colección para cupones
+        const categoriesQuery = query(categoriesCol, orderBy("order"));
+        const menuItemsQuery = query(menuItemsCol, orderBy("name"));
+        const couponsQuery = query(couponsCol, orderBy("fecha_creacion", "desc"));
+
+        // =======================================================
+        // FUNCIONES DE RENDERIZADO (VISTA)
+        // =======================================================
+        
+        /** Formatea un número como moneda RD$ */
+        const formatCurrency = (amount) => `RD$${Number(amount).toLocaleString('es-DO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        
+        /** Renderiza la lista de categorías en el panel de admin */
+        const renderAdminCategories = () => {
+            const list = document.getElementById('category-list');
+            list.innerHTML = appState.categories.map(cat => `
+                <li data-id="${cat.id}" class="flex items-center justify-between p-3 bg-slate-100 rounded-lg">
+                    <div class="flex items-center">
+                        <i class="fa-solid fa-grip-vertical cursor-grab text-slate-400 mr-3"></i>
+                        <span class="font-semibold">${cat.name}</span>
+                    </div>
+                    <button data-id="${cat.id}" class="delete-category-btn text-red-500 hover:text-red-700 w-8 h-8 rounded-full"><i class="fa-solid fa-trash-can"></i></button>
+                </li>
+            `).join('');
+        };
+        
+        /** Renderiza la lista de platillos en el panel de admin */
+        const renderAdminMenuItems = () => {
+            const container = document.getElementById('admin-menu-items');
+            container.innerHTML = ''; // Clear previous content
+
+            if (appState.menuItems.length === 0) {
+                container.innerHTML = `<p class="text-center text-slate-500 py-4">No hay platillos en el menú. ¡Añade el primero!</p>`;
+                return;
+            }
+
+            container.innerHTML = appState.menuItems.map(item => {
+                const optionsHTML = item.options && item.options.length > 0 
+                    ? `<p class="text-xs text-slate-500 mt-1">Opciones: ${item.options.join(', ')}</p>`
+                    : '';
+
+                return `
+                    <div class="p-3 border-b">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="font-bold">${item.name}</p>
+                                <p class="text-sm text-slate-500">${item.categoryName || 'Sin categoría'} - ${formatCurrency(item.price)} - <span class="${item.visible ? 'text-green-600' : 'text-red-600'}">${item.visible ? 'Visible' : 'Oculto'}</span></p>
+                                ${optionsHTML}
+                            </div>
+                            <div class="flex gap-2 flex-shrink-0">
+                                <button data-id="${item.id}" class="edit-item-btn bg-slate-200 text-slate-700 w-10 h-10 rounded-full hover:bg-slate-300" title="Editar"><i class="fa-solid fa-pencil"></i></button>
+                                <button data-id="${item.id}" class="delete-item-btn bg-red-100 text-red-600 w-10 h-10 rounded-full hover:bg-red-200" title="Eliminar"><i class="fa-solid fa-trash-can"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        };
+        
+        /** Renderiza la lista de cupones en el panel de admin */
+        const renderAdminCoupons = () => {
+            const list = document.getElementById('coupon-list');
+            if (appState.coupons.length === 0) {
+                list.innerHTML = `<p class="text-center text-slate-500 text-sm">No hay cupones creados.</p>`;
+                return;
+            }
+            list.innerHTML = appState.coupons.map(coupon => `
+                <li class="p-3 bg-slate-100 rounded-lg">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="font-bold text-indigo-700">${coupon.codigo}</p>
+                            <p class="text-sm text-slate-600">${coupon.porcentaje_descuento * 100}% de descuento</p>
+                        </div>
+                         <div class="text-right">
+                             <p class="font-semibold">${coupon.usos_actuales} / ${coupon.limite_usos}</p>
+                             <p class="text-xs text-slate-500">Usos</p>
+                         </div>
+                    </div>
+                    <button data-id="${coupon.id}" class="delete-coupon-btn text-xs text-red-500 hover:underline mt-2">Eliminar cupón</button>
+                </li>
+            `).join('');
+        };
+
+
+        // =======================================================
+        // LÓGICA DE NEGOCIO (CONTROLADOR)
+        // =======================================================
+        
+        /** Abre o cierra un modal */
+        const toggleModal = (modalId, show) => {
+            const modal = document.getElementById(modalId);
+            if (show) {
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+            } else {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+            }
+        };
+
+        // =======================================================
+        // LÓGICA DE ADMINISTRADOR
+        // =======================================================
+        
+        const openCouponModal = (couponId = null) => {
+            const form = document.getElementById('coupon-form');
+            form.reset();
+            document.getElementById('coupon-id').value = '';
+            document.getElementById('coupon-code').disabled = false;
+
+            if (couponId) {
+                // Lógica para editar (no implementada en este paso)
+                // const coupon = appState.coupons.find(c => c.id === couponId);
+                // ... rellenar campos ...
+                // document.getElementById('coupon-code').disabled = true; // No se puede cambiar el código
+            } else {
+                document.getElementById('coupon-modal-title').textContent = 'Crear Nuevo Cupón';
+            }
+            toggleModal('coupon-modal', true);
+        };
+
+        const handleCouponFormSubmit = async (e) => {
+            e.preventDefault();
+            const codigo = document.getElementById('coupon-code').value.trim().toUpperCase();
+            if (!codigo) {
+                alert("El código del cupón es obligatorio.");
+                return;
+            }
+
+            const couponData = {
+                codigo: codigo,
+                porcentaje_descuento: parseFloat(document.getElementById('coupon-discount').value) / 100,
+                limite_usos: parseInt(document.getElementById('coupon-limit').value),
+                minimo_compra: parseFloat(document.getElementById('coupon-min-purchase').value),
+                usos_actuales: 0,
+                activo: true,
+                fecha_creacion: serverTimestamp()
+            };
+
+            try {
+                // Usamos setDoc con el código como ID para evitar duplicados
+                await setDoc(doc(db, 'cupones_maestros', codigo), couponData);
+                toggleModal('coupon-modal', false);
+            } catch (error) {
+                console.error("Error guardando el cupón:", error);
+                alert("Hubo un error al guardar el cupón.");
+            }
+        };
+
+        /** Abre el modal para añadir o editar un platillo */
+        const openItemModal = (itemId = null) => {
+            const form = document.getElementById('item-form');
+            form.reset();
+            document.getElementById('item-id').value = '';
+            
+            const categorySelect = document.getElementById('item-category');
+            categorySelect.innerHTML = appState.categories.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+
+            if (itemId) { // Editing an existing item
+                const item = appState.menuItems.find(i => i.id === itemId);
+                document.getElementById('modal-title').textContent = 'Editar Platillo';
+                document.getElementById('item-id').value = item.id;
+                document.getElementById('item-name').value = item.name;
+                document.getElementById('item-description').value = item.description;
+                document.getElementById('item-price').value = item.price;
+                document.getElementById('item-category').value = item.categoryId;
+                document.getElementById('item-visible').checked = item.visible;
+                document.getElementById('item-options').value = item.options ? item.options.join('\n') : '';
+            } else { // Adding a new item
+                document.getElementById('modal-title').textContent = 'Añadir Platillo';
+                document.getElementById('item-visible').checked = true;
+            }
+            toggleModal('item-modal', true);
+        };
+
+        /** Guarda un platillo (nuevo o existente) en Firestore */
+        const handleItemFormSubmit = async (e) => {
+            e.preventDefault();
+            const id = document.getElementById('item-id').value;
+            const categoryId = document.getElementById('item-category').value;
+            const category = appState.categories.find(c => c.id === categoryId);
+            
+            const optionsValue = document.getElementById('item-options').value.trim();
+            const options = optionsValue ? optionsValue.split('\n').map(opt => opt.trim()).filter(opt => opt) : [];
+
+            const itemData = {
+                name: document.getElementById('item-name').value.trim(),
+                description: document.getElementById('item-description').value.trim(),
+                price: parseFloat(document.getElementById('item-price').value),
+                categoryId: categoryId,
+                categoryName: category ? category.name : '',
+                visible: document.getElementById('item-visible').checked,
+                options: options
+            };
+            
+            try {
+                if (id) {
+                    await updateDoc(doc(db, 'menuItems', id), itemData);
+                } else {
+                    await addDoc(menuItemsCol, itemData);
+                }
+                toggleModal('item-modal', false);
+            } catch (error) {
+                console.error("Error guardando el platillo:", error);
+                alert("Hubo un error al guardar.");
+            }
+        };
+        
+        /** Restaura el menú desde una copia de seguridad hardcodeada */
+        const restoreBackup = async () => {
+             if (!confirm("¿Estás seguro? Esta acción borrará TODO el menú actual y lo reemplazará con la copia de seguridad.")) return;
+            
+            const backup = {
+                categories: [
+                    { id: "burgers", name: "Hamburguesas", order: 0 },
+                    { id: "pizzas", name: "Pizzas", order: 1 },
+                    { id: "bebidas", name: "Bebidas", order: 2 }
+                ],
+                menuItems: [
+                    { name: "Clásica Burger", description: "Carne de res, lechuga, tomate, queso y salsa especial.", price: 350, categoryId: "burgers", visible: true, options: ["Extra Queso (+RD$50)", "Tocineta (+RD$75)"] },
+                    { name: "Doble Queso Burger", description: "Doble carne, doble queso cheddar, tocineta y cebolla caramelizada.", price: 480, categoryId: "burgers", visible: true, options: [] },
+                    { name: "Pizza Pepperoni", description: "Salsa de tomate, mozzarella y pepperoni de primera.", price: 550, categoryId: "pizzas", visible: true, options: [] },
+                    { name: "Pizza Margarita", description: "La clásica con albahaca fresca.", price: 500, categoryId: "pizzas", visible: false, options: [] },
+                    { name: "Refresco Coca-Cola", description: "Lata de 355ml.", price: 75, categoryId: "bebidas", visible: true, options: ["Normal", "Zero"] },
+                ]
+            };
+
+            try {
+                const batch = writeBatch(db);
+                
+                const currentCategories = await getDocs(categoriesCol);
+                currentCategories.forEach(doc => batch.delete(doc.ref));
+
+                const currentItems = await getDocs(menuItemsCol);
+                currentItems.forEach(doc => batch.delete(doc.ref));
+                
+                // Escribir la copia de seguridad
+                for (const c of backup.categories) {
+                    const {id, ...data} = c;
+                    batch.set(doc(db, 'categories', id), data);
+                }
+                for (const i of backup.menuItems) {
+                    const category = backup.categories.find(c => c.id === i.categoryId);
+                    const newItemData = { ...i };
+                    newItemData.categoryName = category.name;
+                    batch.set(doc(collection(db, 'menuItems')), newItemData);
+                }
+
+                await batch.commit();
+                alert("Menú restaurado con éxito.");
+            } catch (error) {
+                console.error("Error restaurando la copia de seguridad:", error);
+                alert("Ocurrió un error al restaurar.");
+            }
+        };
+
+        // =======================================================
+        // MANEJO DE EVENTOS
+        // =======================================================
+        const setupEventListeners = () => {
+            document.body.addEventListener('click', async (e) => {
+                // --- Eventos de Admin ---
+                
+                const deleteCategoryBtn = e.target.closest('.delete-category-btn');
+                if (deleteCategoryBtn) {
+                     if (confirm("¿Seguro que quieres borrar esta categoría? Los platillos de esta categoría no serán borrados.")) {
+                        await deleteDoc(doc(db, 'categories', deleteCategoryBtn.dataset.id));
+                    }
+                }
+                
+                const deleteCouponBtn = e.target.closest('.delete-coupon-btn');
+                if (deleteCouponBtn) {
+                    if (confirm("¿Seguro que quieres borrar este cupón de forma permanente?")) {
+                        await deleteDoc(doc(db, 'cupones_maestros', deleteCouponBtn.dataset.id));
+                    }
+                }
+
+                if (e.target.closest('#add-item-btn')) {
+                    openItemModal();
+                }
+
+                if (e.target.closest('#add-coupon-btn')) {
+                    openCouponModal();
+                }
+
+                const editItemBtn = e.target.closest('.edit-item-btn');
+                if (editItemBtn) {
+                    openItemModal(editItemBtn.dataset.id);
+                }
+
+                const deleteItemBtn = e.target.closest('.delete-item-btn');
+                if (deleteItemBtn) {
+                    const itemIdToDelete = deleteItemBtn.dataset.id;
+                    if (confirm("¿Seguro que quieres borrar este platillo?")) {
+                        try {
+                            await deleteDoc(doc(db, 'menuItems', itemIdToDelete));
+                        } catch (error) {
+                            console.error("Error deleting item:", error);
+                            alert("Hubo un error al eliminar el platillo.");
+                        }
+                    }
+                }
+
+                if (e.target.closest('#cancel-item-btn')) {
+                    toggleModal('item-modal', false);
+                }
+                
+                if (e.target.closest('#cancel-coupon-btn')) {
+                    toggleModal('coupon-modal', false);
+                }
+                
+                if (e.target.closest('#restore-backup-btn')) {
+                    restoreBackup();
+                }
+            });
+
+            document.getElementById('item-form').addEventListener('submit', handleItemFormSubmit);
+            document.getElementById('coupon-form').addEventListener('submit', handleCouponFormSubmit);
+
+
+            document.getElementById('add-category-form').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const input = document.getElementById('category-name-input');
+                const name = input.value.trim();
+                if (name) {
+                    const order = appState.categories.length;
+                    await addDoc(categoriesCol, { name, order });
+                    input.value = '';
+                }
+            });
+        };
+        
+        // =======================================================
+        // LÓGICA DE AUTENTICACIÓN
+        // =======================================================
+        const setupAdminAuth = () => {
+            const passwordInput = document.getElementById('password-input');
+            const passwordSubmit = document.getElementById('password-submit');
+            const passwordError = document.getElementById('password-error');
+
+            const attemptLogin = () => {
+                if (passwordInput.value === ADMIN_PASSWORD) {
+                    sessionStorage.setItem('adminAuthenticated', 'true');
+                    document.getElementById('password-prompt').classList.add('hidden');
+                    document.getElementById('password-prompt').classList.remove('flex');
+                    document.getElementById('admin-panel').classList.remove('hidden');
+                    passwordError.classList.add('hidden');
+                } else {
+                    passwordError.classList.remove('hidden');
+                }
+            };
+            
+            passwordSubmit.addEventListener('click', attemptLogin);
+            passwordInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') attemptLogin();
+            });
+
+            document.getElementById('logout-btn').addEventListener('click', (e) => {
+                e.preventDefault();
+                sessionStorage.removeItem('adminAuthenticated');
+                passwordInput.value = '';
+                document.getElementById('admin-panel').classList.add('hidden');
+                document.getElementById('password-prompt').classList.remove('hidden');
+                document.getElementById('password-prompt').classList.add('flex');
+            });
+
+            if (sessionStorage.getItem('adminAuthenticated') === 'true') {
+                 document.getElementById('password-prompt').classList.add('hidden');
+                 document.getElementById('password-prompt').classList.remove('flex');
+                 document.getElementById('admin-panel').classList.remove('hidden');
+            }
+        };
+        
+        // =======================================================
+        // PUNTO DE ENTRADA PRINCIPAL
+        // =======================================================
+        const init = () => {
+            onSnapshot(categoriesQuery, (snapshot) => {
+                appState.categories = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderAdminCategories();
+                
+                if (appState.adminSortable) appState.adminSortable.destroy();
+                const el = document.getElementById('category-list');
+                appState.adminSortable = Sortable.create(el, {
+                    animation: 150,
+                    handle: '.fa-grip-vertical',
+                    onEnd: async (evt) => {
+                        const batch = writeBatch(db);
+                        el.querySelectorAll('li').forEach((li, index) => {
+                            const docRef = doc(db, 'categories', li.dataset.id);
+                            batch.update(docRef, { order: index });
+                        });
+                        await batch.commit();
+                    }
+                });
+            });
+
+            onSnapshot(menuItemsQuery, (snapshot) => {
+                const itemsWithCategoryName = snapshot.docs.map(docSnap => {
+                    const data = docSnap.data();
+                    const category = appState.categories.find(c => c.id === data.categoryId);
+                    return {
+                        id: docSnap.id,
+                        ...data,
+                        categoryName: category ? category.name : 'Sin categoría'
+                    };
+                });
+                appState.menuItems = itemsWithCategoryName;
+                renderAdminMenuItems();
+            });
+
+            onSnapshot(couponsQuery, (snapshot) => {
+                appState.coupons = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderAdminCoupons();
+            });
+            
+            setupEventListeners();
+            setupAdminAuth();
+        };
+
+        init();
+    </script>
+</body>
+</html>

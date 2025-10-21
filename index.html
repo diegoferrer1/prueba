@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+    <title>Palau — Menú Dark Kitchen</title>
+    <meta name="theme-color" content="#F8F9FC" />
+
+    <!-- Google Fonts & Icons -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@10..48,700;10..48,800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+    <!-- Hoja de Estilos -->
+    <link rel="stylesheet" href="style.css">
+    <style>
+        /* Estilos de Estado para Cupones */
+        .coupon-status-text {
+            padding: 8px;
+            border-radius: 8px;
+            font-size: 0.875rem;
+            margin-top: 8px;
+            text-align: center;
+        }
+        .coupon-status-text.success {
+            background-color: #dcfce7; /* green-100 */
+            color: #166534; /* green-800 */
+        }
+        .coupon-status-text.error {
+            background-color: #fee2e2; /* red-100 */
+            color: #991b1b; /* red-800 */
+        }
+        .coupon-status-text.info {
+            background-color: #e0e7ff; /* indigo-100 */
+            color: #3730a3; /* indigo-800 */
+        }
+        /* Z-index para el nuevo drawer de ubicación */
+        #locationSelectionDrawer { z-index: 55; }
+    </style>
+
+    <!-- Scripts -->
+    <script type="module" src="firebase-config.js" defer></script>
+    <script type="module" src="script.js" defer></script>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDUNTpFKdTVDC2N-G1tqP377kWr2iddpA4&callback=initMap&libraries=marker&v=beta" defer></script>
+
+</head>
+<body>
+
+<div class="top-bar">
+    <a href="panel_admin.html" id="admin-link" class="m3-text-button mr-auto font-medium" style="display: none;">Admin Panel</a>
+    <button class="m3-chip profile-chip" id="profileBtn" aria-label="Perfil" type="button">
+        <span class="material-symbols-outlined">person</span>
+        <span id="profileBtn-label">Iniciar Sesión</span>
+    </button>
+</div>
+
+<main>
+    <section class="hero">
+        <img src="palau.png" alt="Logo de Palau" class="hero__logo" onerror="this.onerror=null;this.src='https://placehold.co/128x128/6366f1/ffffff?text=Palau';">
+        <p class="hero__subtitle">Tu comida rápida favorita, a un clic de distancia. Pide y recibe donde estés.</p>
+        <div class="search-container">
+            <label class="m3-search-field" for="q">
+                <span class="material-symbols-outlined">search</span>
+                <input id="q" type="search" placeholder="Buscar hamburguesas, pizzas..." autocomplete="off" />
+                <button id="clearSearch" class="m3-icon-button clear-button" aria-label="Limpiar búsqueda" type="button">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </label>
+        </div>
+        <div class="filters">
+            <nav class="chips-container" id="chips" aria-label="Categorías"></nav>
+            <button id="chipNext" class="m3-icon-button chip-next" aria-label="Más categorías" type="button">
+                <span class="material-symbols-outlined">arrow_forward</span>
+            </button>
+        </div>
+    </section>
+    <!-- Contenido del menú se carga aquí, mostrando un loader mientras tanto -->
+    <section class="content-wrap" id="content" tabindex="-1" aria-live="polite">
+        <div id="loading-menu" class="text-center p-8 text-[var(--md-sys-color-on-surface-variant)]">
+            <i class="fas fa-spinner fa-spin text-2xl mb-4 text-[var(--md-sys-color-primary)]"></i>
+            <p>Cargando menú...</p>
+        </div>
+    </section>
+</main>
+
+<button id="fabCart" class="m3-fab" aria-label="Abrir carrito" type="button">
+    <span class="material-symbols-outlined">shopping_cart</span>
+    <span id="fabBadge" class="m3-fab__badge">0</span>
+</button>
+
+<div id="cartDrawer" class="scrim">
+    <section class="m3-bottom-sheet" role="dialog" aria-modal="true" aria-labelledby="drawerTitle">
+        <header class="m3-bottom-sheet__header">
+            <h2 id="drawerTitle" class="m3-headline-small">Tu pedido</h2>
+            <div class="header-actions">
+                <button id="clearCartBtn" class="m3-icon-button" aria-label="Limpiar carrito"><span class="material-symbols-outlined">delete_sweep</span></button>
+                <button id="drawerClose" class="m3-icon-button" aria-label="Cerrar"><span class="material-symbols-outlined">close</span></button>
+            </div>
+        </header>
+        <div id="drawerList" class="m3-bottom-sheet__list"></div>
+        <footer class="m3-bottom-sheet__footer">
+            <div class="footer-section">
+                <p class="m3-label-large">Comentario (opcional):</p>
+                <button id="openCommentBtn" class="m3-outlined-button"><span class="material-symbols-outlined">edit_note</span><span>Añadir un comentario</span></button>
+                <p id="commentStatus" class="status-text m3-body-small">Sin comentarios.</p>
+            </div>
+            
+            <!-- SECCIÓN DE UBICACIÓN MEJORADA -->
+            <div class="footer-section">
+                <p class="m3-label-large">Ubicación para Delivery:</p>
+                <button id="openLocationSelectionBtn" class="m3-filled-button" style="width: 100%; justify-content: center;">
+                    <span class="material-symbols-outlined">location_on</span>
+                    <span>Seleccionar Ubicación</span>
+                </button>
+                <p id="locationStatus" class="status-text m3-body-small">Elige una ubicación para el delivery.</p>
+            </div>
+
+            <!-- SECCIÓN DE CUPONES -->
+            <div class="footer-section coupon-section">
+                <p class="m3-label-large">¿Tienes un cupón?</p>
+                <div class="input-wrapper">
+                    <span class="material-symbols-outlined">sell</span>
+                    <input id="coupon-code-input" type="text" class="m3-text-field" placeholder="INGRESA TU CÓDIGO" style="text-transform: uppercase;">
+                    <button id="apply-coupon-btn" class="m3-icon-button" aria-label="Aplicar cupón" type="button" disabled>
+                        <span class="material-symbols-outlined">check_circle</span>
+                    </button>
+                </div>
+                <p id="coupon-status" class="coupon-status-text info">Inicia sesión para usar cupones.</p>
+            </div>
+
+            <div class="totals-block">
+                <div class="total-row"><span class="m3-body-large">Subtotal</span><span id="cartSubtotal" class="m3-body-large">RD$0.00</span></div>
+                <div id="discount-row" class="total-row" style="display: none;"><span class="m3-body-large text-green-600">Descuento</span><span id="cartDiscount" class="m3-body-large text-green-600">-RD$0.00</span></div>
+                <div class="total-row"><span class="m3-body-large">ITBIS (18%)</span><span id="cartItbis" class="m3-body-large">RD$0.00</span></div>
+                <div class="total-row final-total"><span class="m3-title-medium">Total</span><span id="cartTotal" class="m3-title-medium">RD$0.00</span></div>
+            </div>
+            <button id="waDrawer" class="m3-filled-button whatsapp-btn" disabled type="button"><i class="fab fa-whatsapp"></i><span>Finalizar por WhatsApp</span></button>
+        </footer>
+    </section>
+</div>
+
+<!-- MODALES DE LA APLICACIÓN -->
+
+<div id="mapModal" class="scrim">
+    <div class="m3-dialog">
+        <header class="m3-dialog__header">
+            <h2 class="m3-title-large">Confirma tu Ubicación</h2>
+            <button id="closeMapBtn" class="m3-icon-button" aria-label="Cerrar"><span class="material-symbols-outlined">close</span></button>
+        </header>
+        <div class="m3-dialog__content">
+            <div id="map"></div>
+            <div class="map-loader"><i class="fas fa-spinner fa-spin"></i><p>Buscando...</p></div>
+        </div>
+        <footer class="m3-dialog__footer map-footer">
+             <div class="map-address-container">
+                <p class="m3-label-medium">Dirección detectada:</p>
+                <p id="mapAddress">Mueve el mapa para ajustar la ubicación.</p>
+            </div>
+            <button id="confirmLocationBtn" class="m3-filled-button" disabled>Confirmar Dirección</button>
+        </footer>
+    </div>
+</div>
+
+<div id="quantityModal" class="scrim">
+    <div class="m3-dialog quantity-dialog" role="dialog" aria-modal="true" aria-labelledby="quantityTitle">
+        <header class="m3-dialog__header">
+            <h2 id="quantityTitle" class="m3-title-large">Selecciona la Cantidad</h2>
+            <button id="closeQuantityBtn" class="m3-icon-button" aria-label="Cerrar">
+                <span class="material-symbols-outlined">close</span>
+            </button>
+        </header>
+        <div class="quantity-dialog__content">
+            <p id="quantityProductName" class="m3-body-large"></p>
+            <div class="quantity-stepper">
+                <button id="quantityDecrement" class="m3-icon-button outlined" aria-label="Restar uno">−</button>
+                <span id="quantityValue" class="m3-title-large">1</span>
+                <button id="quantityIncrement" class="m3-icon-button outlined" aria-label="Sumar uno">+</button>
+            </div>
+        </div>
+        <footer class="m3-dialog__footer">
+            <button id="confirmAddToCartBtn" class="m3-filled-button">Añadir al Carrito</button>
+        </footer>
+    </div>
+</div>
+
+<div id="optionsModal" class="scrim">
+    <div class="m3-dialog options-dialog" role="dialog" aria-modal="true" aria-labelledby="optionsTitle">
+        <header class="m3-dialog__header">
+            <h2 id="optionsTitle" class="m3-title-large">Elige las Opciones</h2>
+            <button id="closeOptionsBtn" class="m3-icon-button" aria-label="Cerrar">
+                <span class="material-symbols-outlined">close</span>
+            </button>
+        </header>
+        <div class="m3-dialog__content">
+            <p id="optionsProductName" class="m3-body-large product-name"></p>
+            
+            <div id="itemOptionsSection" style="display: none;">
+                <h3 class="m3-title-medium">Adicionales</h3>
+                <div id="itemOptionsContainer" class="options-group"></div>
+            </div>
+            
+            <div>
+                <h3 class="m3-title-medium">Comentario para este plato</h3>
+                <textarea id="itemCommentTextarea" class="m3-text-field" placeholder="Ej: Sin cebolla, extra ketchup..."></textarea>
+            </div>
+
+            <div>
+                <h3 class="m3-title-medium">Cantidad</h3>
+                <div class="quantity-stepper">
+                    <button id="optionsDecrement" class="m3-icon-button outlined" aria-label="Restar uno">−</button>
+                    <span id="optionsValue" class="m3-title-large">1</span>
+                    <button id="optionsIncrement" class="m3-icon-button outlined" aria-label="Sumar uno">+</button>
+                </div>
+            </div>
+        </div>
+        <footer class="m3-dialog__footer">
+            <button id="confirmWithOptionsBtn" class="m3-filled-button">Confirmar y Añadir</button>
+        </footer>
+    </div>
+</div>
+
+<div id="commentModal" class="scrim">
+    <div class="m3-dialog comment-dialog" role="dialog" aria-modal="true" aria-labelledby="commentTitle">
+        <header class="m3-dialog__header">
+            <h2 id="commentTitle" class="m3-title-large">Añadir Comentario</h2>
+            <button id="closeCommentBtn" class="m3-icon-button" aria-label="Cerrar">
+                <span class="material-symbols-outlined">close</span>
+            </button>
+        </header>
+        <div class="m3-dialog__content">
+            <textarea id="commentTextarea" class="m3-text-field" placeholder="Escribe tu nota aquí..."></textarea>
+        </div>
+        <footer class="m3-dialog__footer">
+            <button id="confirmCommentBtn" class="m3-filled-button">Guardar Comentario</button>
+        </footer>
+    </div>
+</div>
+
+<div id="confirmationModal" class="scrim">
+    <div class="m3-dialog confirmation-dialog" role="dialog" aria-modal="true">
+        <header class="m3-dialog__header">
+            <h2 class="m3-title-large">¡Pedido Enviado!</h2>
+        </header>
+        <div class="m3-dialog__content">
+            <div class="confirmation-icon">
+                <i class="fas fa-check-circle"></i>
+            </div>
+            <p class="m3-body-large">Hemos recibido tu pedido. Se ha enviado un resumen a WhatsApp para que un representante te contacte y confirme.</p>
+            <div class="map-container">
+                <h3 class="m3-label-medium">Tu dirección de entrega:</h3>
+                <img id="static-map" src="" alt="Mapa de la dirección de entrega" onerror="this.style.display='none'">
+                <p id="map-address-text" class="map-address-text"></p>
+            </div>
+        </div>
+        <footer class="m3-dialog__footer">
+            <button id="closeConfirmationBtn" class="m3-filled-button">Entendido</button>
+        </footer>
+    </div>
+</div>
+
+<!-- NUEVO DRAWER PARA SELECCIÓN DE UBICACIÓN -->
+<div id="locationSelectionDrawer" class="scrim">
+    <section class="m3-bottom-sheet" role="dialog" aria-modal="true" aria-labelledby="locationSelectionTitle">
+        <header class="m3-bottom-sheet__header">
+            <h2 id="locationSelectionTitle" class="m3-headline-small">Seleccionar Ubicación</h2>
+            <button id="closeLocationSelectionBtn" class="m3-icon-button" aria-label="Cerrar"><span class="material-symbols-outlined">close</span></button>
+        </header>
+        <div class="m3-bottom-sheet__list" style="padding: 1rem 1.5rem; display: flex; flex-direction: column; gap: 16px;">
+            <button id="useSavedAddressBtn" class="m3-filled-button" style="display: none; justify-content: center;">
+                <span class="material-symbols-outlined">my_location</span>
+                <span>Usar mi dirección guardada</span>
+            </button>
+            <button id="openMapBtn" class="m3-filled-button location-btn" style="justify-content: center;">
+                <span class="material-symbols-outlined">explore</span>
+                <span>Obtener mi ubicación del mapa</span>
+            </button>
+            <div class="form-field">
+                <label class="m3-label-medium">O escribe tu dirección manualmente:</label>
+                <div class="input-wrapper">
+                    <span class="material-symbols-outlined">home_pin</span>
+                    <input id="manualAddressInput" type="text" class="m3-text-field" placeholder="Ej: Av. Estrella Sadhalá">
+                </div>
+            </div>
+        </div>
+        <footer class="m3-bottom-sheet__footer">
+             <button id="confirmManualAddressBtn" class="m3-filled-button" style="width: 100%; justify-content: center;">Usar dirección escrita</button>
+        </footer>
+    </section>
+</div>
+
+
+<div id="authModal" class="scrim">
+    <div class="m3-dialog auth-dialog" role="dialog" aria-modal="true">
+        <div id="view-login" class="auth-view">
+            <header class="m3-dialog__header">
+                <h2 class="m3-headline-small">Bienvenido</h2>
+                <button class="m3-icon-button" aria-label="Cerrar"><span class="material-symbols-outlined">close</span></button>
+            </header>
+            <form id="login-form">
+                <div class="m3-dialog__content">
+                    <p class="auth-intro">Ingresa tus datos para continuar.</p>
+                    <div class="form-field">
+                        <label class="m3-label-medium">Correo Electrónico</label>
+                        <div class="input-wrapper">
+                            <span class="material-symbols-outlined">mail</span>
+                            <input id="login-email" type="email" class="m3-text-field" required autocomplete="email">
+                        </div>
+                    </div>
+                    <div class="form-field">
+                        <label class="m3-label-medium">Contraseña</label>
+                        <div class="input-wrapper">
+                            <span class="material-symbols-outlined">lock</span>
+                            <input id="login-password" type="password" class="m3-text-field" required autocomplete="current-password">
+                            <button type="button" class="m3-icon-button toggle-password" aria-label="Mostrar contraseña">
+                                <span class="material-symbols-outlined">visibility</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <footer class="auth-footer">
+                    <button type="submit" class="m3-filled-button">Iniciar Sesión</button>
+                    <div class="switch-view-container">
+                        ¿No tienes cuenta? <a href="#" id="goToRegister" class="m3-text-button">Regístrate</a>
+                    </div>
+                </footer>
+            </form>
+        </div>
+
+        <div id="view-register" class="auth-view">
+            <header class="m3-dialog__header">
+                <h2 class="m3-headline-small">Crear Cuenta</h2>
+                <button class="m3-icon-button" aria-label="Cerrar"><span class="material-symbols-outlined">close</span></button>
+            </header>
+            <form id="register-form">
+                <div class="m3-dialog__content">
+                    <p class="auth-intro">Completa el formulario para registrarte.</p>
+                    <div class="form-field">
+                        <label class="m3-label-medium">Correo Electrónico</label>
+                        <div class="input-wrapper">
+                            <span class="material-symbols-outlined">mail</span>
+                            <input id="register-email" type="email" class="m3-text-field" required autocomplete="email">
+                        </div>
+                    </div>
+                    <div class="form-field">
+                        <label class="m3-label-medium">Contraseña (mín. 6 caracteres)</label>
+                        <div class="input-wrapper">
+                             <span class="material-symbols-outlined">lock</span>
+                            <input id="register-password" type="password" class="m3-text-field" required autocomplete="new-password">
+                             <button type="button" class="m3-icon-button toggle-password" aria-label="Mostrar contraseña">
+                                 <span class="material-symbols-outlined">visibility</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="form-field">
+                        <label class="m3-label-medium">Tu Dirección (para delivery)</label>
+                         <div class="input-wrapper">
+                            <span class="material-symbols-outlined">home_pin</span>
+                            <textarea id="register-address" class="m3-text-field" required placeholder="Escribe tu dirección o usa el botón"></textarea>
+                        </div>
+                        <button type="button" id="openMapForRegisterBtn" class="m3-outlined-button" style="margin-top: 8px;">
+                            <span class="material-symbols-outlined">location_on</span>
+                            Obtener mi ubicación actual
+                        </button>
+                    </div>
+                </div>
+                <footer class="auth-footer">
+                    <button type="submit" class="m3-filled-button">Crear mi Cuenta</button>
+                     <div class="switch-view-container">
+                        ¿Ya tienes una cuenta? <a href="#" id="goToLogin" class="m3-text-button">Inicia Sesión</a>
+                    </div>
+                </footer>
+            </form>
+        </div>
+
+        <div id="view-profile" class="auth-view">
+            <header class="m3-dialog__header">
+                <h2 class="m3-headline-small">Mi Perfil</h2>
+                <button class="m3-icon-button" aria-label="Cerrar"><span class="material-symbols-outlined">close</span></button>
+            </header>
+            <div class="profile-content">
+                <div class="profile-avatar">
+                    <span class="material-symbols-outlined">person</span>
+                </div>
+                <p class="m3-body-large">Hola, <strong id="profile-email"></strong></p>
+                <div class="address-info">
+                    <p class="m3-label-medium">Dirección guardada:</p>
+                    <p id="profile-address"></p>
+                </div>
+            </div>
+            <footer class="m3-dialog__footer">
+                <button id="logoutBtn" class="m3-filled-button logout-btn">Cerrar Sesión</button>
+            </footer>
+        </div>
+    </div>
+</div>
+
+
+
+</body>
+</html>
